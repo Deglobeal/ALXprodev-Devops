@@ -1,0 +1,54 @@
+#!/bin/bash
+
+input_dir="pokemon_data"
+output_file="pokemon_report.csv"
+
+# Write CSV header
+echo "Name,Height (m),Weight (kg)" > "$output_file"
+
+# Temporary file for awk calculation
+temp_file=$(mktemp)
+
+# Loop over JSON files
+for file in "$input_dir"/*.json; do
+    # Extract name, height (dm), weight (hg)
+    name=$(jq -r '.name' "$file")
+    height_dm=$(jq -r '.height' "$file")
+    weight_hg=$(jq -r '.weight' "$file")
+
+    # Convert height to meters, weight to kg
+    height_m=$(awk "BEGIN {printf \"%.1f\", $height_dm/10}")
+    weight_kg=$(awk "BEGIN {printf \"%.1f\", $weight_hg/10}")
+
+    # Print to CSV
+    echo "$name,$height_m,$weight_kg" >> "$output_file"
+    
+    # Append height and weight for averaging
+    echo "$height_m $weight_kg" >> "$temp_file"
+done
+
+echo "CSV Report generated at: $output_file"
+echo
+
+echo "Name,Height (m),Weight (kg)"
+cat "$output_file" | tail -n +2  # Show CSV content except header
+
+echo
+
+# Calculate averages with awk
+awk '
+{
+    sumH += $1;
+    sumW += $2;
+    count++;
+}
+END {
+    avgH = (count > 0) ? sumH/count : 0;
+    avgW = (count > 0) ? sumW/count : 0;
+    printf "Average Height: %.2f m\nAverage Weight: %.2f kg\n", avgH, avgW;
+}
+' "$temp_file"
+
+# Clean up temp file
+rm "$temp_file"
+
