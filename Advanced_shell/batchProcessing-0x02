@@ -1,33 +1,48 @@
 #!/bin/bash
 
-# List of Pokémon (lowercase for filenames and URLs)
+# List of Pokémon to fetch
 pokemon_list=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 
-# Directory to save JSON files
+# Output directory
 output_dir="pokemon_data"
-
-# Create output directory if not exists
 mkdir -p "$output_dir"
 
-for pokemon in "${pokemon_list[@]}"
-do
+# Error log file
+error_log="error_log.txt"
+> "$error_log"  # Clear previous log
+
+# Function to fetch Pokémon with retry logic
+fetch_pokemon() {
+    local pokemon=$1
+    local attempts=0
+    local max_attempts=3
+    local success=0
+
     echo "Fetching data for $pokemon..."
-    
-    url="https://pokeapi.co/api/v2/pokemon/$pokemon"
-    output_file="$output_dir/${pokemon}.json"
-    
-    # Fetch data and save to file
-    http_status=$(curl -s -w "%{http_code}" -o "$output_file" "$url")
-    
-    if [ "$http_status" -eq 200 ]; then
-        echo "Saved data to $output_file ✅"
-    else
-        echo "Failed to fetch data for $pokemon. HTTP status: $http_status" >&2
-        # Remove incomplete file if any
-        [ -f "$output_file" ] && rm "$output_file"
+
+    while [ $attempts -lt $max_attempts ]; do
+        ((attempts++))
+        response_code=$(curl -s -w "%{http_code}" -o "$output_dir/${pokemon}.json" "https://pokeapi.co/api/v2/pokemon/$pokemon")
+
+        if [ "$response_code" -eq 200 ]; then
+            echo "Saved data to $output_dir/${pokemon}.json ✅"
+            success=1
+            break
+        else
+            echo "Attempt $attempts failed for $pokemon (Status: $response_code)"
+            sleep 1
+        fi
+    done
+
+    if [ $success -eq 0 ]; then
+        echo "❌ Failed to fetch data for $pokemon after $max_attempts attempts." | tee -a "$error_log"
+        [ -f "$output_dir/${pokemon}.json" ] && rm "$output_dir/${pokemon}.json"
     fi
-    
-    # Delay to avoid rate limiting
-    sleep 1
+}
+
+# Loop through all Pokémon
+for pokemon in "${pokemon_list[@]}"; do
+    fetch_pokemon "$pokemon"
+    sleep 1  # avoid hitting rate limit
 done
 
