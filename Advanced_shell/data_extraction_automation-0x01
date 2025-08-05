@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Extract name, height (dm), weight (hg), and type from data.json using jq
+name=$(jq -r '.name' data.json)
+height_dm=$(jq -r '.height' data.json)
+weight_hg=$(jq -r '.weight' data.json)
+
+# Get the first type's name and capitalize first letter
+type_raw=$(jq -r '.types[0].type.name' data.json)
+type=$(echo "$type_raw" | sed 's/.*/\u&/')
+
+# Convert height from decimeters to meters (float with 1 decimal)
+height_m=$(echo "$height_dm" | awk '{printf "%.1f", $1 / 10}')
+
+# Convert weight from hectograms to kilograms (integer)
+weight_kg=$(echo "$weight_hg" | awk '{printf "%d", $1 / 10}')
+
+# Print formatted output
+echo "$name is of type $type, weighs ${weight_kg}kg, and is ${height_m}m tall."
+
