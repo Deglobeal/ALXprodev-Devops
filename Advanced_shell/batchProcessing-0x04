@@ -7,11 +7,11 @@ pokemon_list=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 output_dir="pokemon_data"
 mkdir -p "$output_dir"
 
-# Error log file
+# Error log
 error_log="error_log_parallel.txt"
-> "$error_log"  # Clear previous log
+> "$error_log"
 
-# Function to fetch a Pokémon in the background
+# Function to fetch a Pokémon
 fetch_pokemon() {
     local pokemon=$1
     local output_file="$output_dir/${pokemon}.json"
@@ -19,10 +19,8 @@ fetch_pokemon() {
 
     echo "Fetching data for $pokemon..."
 
-    # Perform the request
     response_code=$(curl -s -w "%{http_code}" -o "$output_file" "$url")
 
-    # Check response
     if [ "$response_code" -eq 200 ]; then
         echo "Saved data to $output_file ✅"
     else
@@ -31,14 +29,23 @@ fetch_pokemon() {
     fi
 }
 
-# Loop and run all fetches in parallel
+# Start background jobs
 for pokemon in "${pokemon_list[@]}"; do
     fetch_pokemon "$pokemon" &
 done
 
-# Wait for all background processes to finish
+# Use 'jobs' to monitor background tasks
+echo
+echo "=== Active Jobs ==="
+jobs
+
+# Wait for all background jobs to finish
 wait
+
+# Re-check background jobs (should be empty if all completed)
+echo
+echo "=== Jobs After Wait ==="
+jobs
 
 echo
 echo "✅ All fetches completed."
-
