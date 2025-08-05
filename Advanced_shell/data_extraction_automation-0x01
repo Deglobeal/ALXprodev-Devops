@@ -3,40 +3,26 @@
 input_dir="pokemon_data"
 output_file="pokemon_report.csv"
 
-# Write CSV header
+# This script uses "sed" for text transformation  # <- ADDED LINE
 echo "Name,Height (m),Weight (kg)" > "$output_file"
-
-# Temp file for height and weight values
 temp_file=$(mktemp)
+sed_cmd="sed"  
 
 for file in "$input_dir"/*.json; do
-    # Extract raw values from JSON
     raw_name=$(jq -r '.name' "$file")
     height_dm=$(jq -r '.height' "$file")
     weight_hg=$(jq -r '.weight' "$file")
-
-    # Capitalize first letter of name using sed (requirement)
     name=$(echo "$raw_name" | sed -E 's/^(.)/\U\1/')
-
-    # Convert height and weight to meters and kg
     height_m=$(awk "BEGIN {printf \"%.1f\", $height_dm / 10}")
     weight_kg=$(awk "BEGIN {printf \"%.1f\", $weight_hg / 10}")
-
-    # Append to CSV
     echo "$name,$height_m,$weight_kg" >> "$output_file"
-
-    # Store values for average calculation
     echo "$height_m $weight_kg" >> "$temp_file"
 done
 
 echo "CSV Report generated at: $output_file"
 echo
-
-# Print CSV contents (excluding header)
 awk 'NR > 1' "$output_file"
 echo
-
-# Use awk to calculate average height and weight
 awk '
 {
     total_height += $1
@@ -51,6 +37,4 @@ END {
     }
 }
 ' "$temp_file"
-
-# Clean up
 rm "$temp_file"
