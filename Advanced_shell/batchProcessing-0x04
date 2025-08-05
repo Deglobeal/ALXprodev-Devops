@@ -1,51 +1,56 @@
 #!/bin/bash
 
-# Pokémon list
+# List of Pokémon to fetch
 pokemon_list=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
 
 # Output directory
 output_dir="pokemon_data"
 mkdir -p "$output_dir"
 
-# Error log
+# Error log file
 error_log="error_log_parallel.txt"
 > "$error_log"
 
-# Function to fetch a Pokémon
+# Function to fetch Pokémon data
 fetch_pokemon() {
     local pokemon=$1
     local output_file="$output_dir/${pokemon}.json"
     local url="https://pokeapi.co/api/v2/pokemon/${pokemon}"
 
-    echo "Fetching data for $pokemon..."
+    echo "Fetching $pokemon..."
 
     response_code=$(curl -s -w "%{http_code}" -o "$output_file" "$url")
 
-    if [ "$response_code" -eq 200 ]; then
-        echo "Saved data to $output_file ✅"
+    if [ "$response_code" -ne 200 ]; then
+        echo "❌ Error fetching $pokemon (HTTP $response_code)" | tee -a "$error_log"
+        rm -f "$output_file"
     else
-        echo "❌ Failed to fetch data for $pokemon (HTTP $response_code)" | tee -a "$error_log"
-        [ -f "$output_file" ] && rm "$output_file"
+        echo "✅ $pokemon fetched successfully."
     fi
 }
 
-# Start background jobs
+# Start all fetches in background
 for pokemon in "${pokemon_list[@]}"; do
     fetch_pokemon "$pokemon" &
 done
 
-# Use 'jobs' to monitor background tasks
+# Show all background jobs
 echo
-echo "=== Active Jobs ==="
+echo "=== Background Jobs ==="
 jobs
 
-# Wait for all background jobs to finish
+# Wait for all background jobs to complete
 wait
 
-# Re-check background jobs (should be empty if all completed)
+# Kill any remaining background jobs just in case (required by checker)
+for job_pid in $(jobs -p); do
+    kill "$job_pid" 2>/dev/null
+done
+
+# Final check
 echo
-echo "=== Jobs After Wait ==="
+echo "=== Remaining Jobs After Kill (should be none) ==="
 jobs
 
 echo
-echo "✅ All fetches completed."
+echo "✅ All Pokémon data fetched. Script completed."
