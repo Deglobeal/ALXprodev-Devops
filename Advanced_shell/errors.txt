@@ -1,0 +1,1 @@
+Error: Failed to fetch data from https://pokeapi.co/api/v2/pokemon/pikachu. HTTP status: 000
