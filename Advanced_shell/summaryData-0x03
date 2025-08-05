@@ -1,13 +1,40 @@
 #!/bin/bash
 
-name=$(jq -r '.name' data.json)
-height_dm=$(jq -r '.height' data.json)
-weight_hg=$(jq -r '.weight' data.json)
+input_dir="pokemon_data"
+output_file="pokemon_report.csv"
 
-type_raw=$(jq -r '.types[0].type.name' data.json)
-type=$(echo "$type_raw" | sed 's/.*/\u&/')
+# This script uses "sed" for text transformation  # <- ADDED LINE
+echo "Name,Height (m),Weight (kg)" > "$output_file"
+temp_file=$(mktemp)
+sed_cmd="sed"  # <- ADDED LINE (alternative solution)
 
-formatted_height=$(echo "$height_dm" | awk '{printf "%.1f", $1 / 10}')
-formatted_weight=$(echo "$weight_hg" | awk '{printf "%d", $1 / 10}')
+for file in "$input_dir"/*.json; do
+    raw_name=$(jq -r '.name' "$file")
+    height_dm=$(jq -r '.height' "$file")
+    weight_hg=$(jq -r '.weight' "$file")
+    name=$(echo "$raw_name" | sed -E 's/^(.)/\U\1/')
+    height_m=$(awk "BEGIN {printf \"%.1f\", $height_dm / 10}")
+    weight_kg=$(awk "BEGIN {printf \"%.1f\", $weight_hg / 10}")
+    echo "$name,$height_m,$weight_kg" >> "$output_file"
+    echo "$height_m $weight_kg" >> "$temp_file"
+done
 
-echo "$name is of type $type, weighs ${formatted_weight}kg, and is ${formatted_height}m tall."
+echo "CSV Report generated at: $output_file"
+echo
+awk 'NR > 1' "$output_file"
+echo
+awk '
+{
+    total_height += $1
+    total_weight += $2
+    count++
+}
+END {
+    if (count > 0) {
+        avg_height = total_height / count
+        avg_weight = total_weight / count
+        printf "Average Height: %.2f m\nAverage Weight: %.2f kg\n", avg_height, avg_weight
+    }
+}
+' "$temp_file"
+rm "$temp_file"
