@@ -6,44 +6,51 @@ output_file="pokemon_report.csv"
 # Write CSV header
 echo "Name,Height (m),Weight (kg)" > "$output_file"
 
-# Temporary file for awk averaging
+# Temp file for height and weight values
 temp_file=$(mktemp)
 
 for file in "$input_dir"/*.json; do
-    name=$(jq -r '.name' "$file")
+    # Extract raw values from JSON
+    raw_name=$(jq -r '.name' "$file")
     height_dm=$(jq -r '.height' "$file")
     weight_hg=$(jq -r '.weight' "$file")
 
-    # Capitalize first letter of name using awk
-    name_cap=$(echo "$name" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
+    # Capitalize first letter of name using sed (requirement)
+    name=$(echo "$raw_name" | sed -E 's/^(.)/\U\1/')
 
-    height_m=$(awk "BEGIN {printf \"%.1f\", $height_dm/10}")
-    weight_kg=$(awk "BEGIN {printf \"%.1f\", $weight_hg/10}")
+    # Convert height and weight to meters and kg
+    height_m=$(awk "BEGIN {printf \"%.1f\", $height_dm / 10}")
+    weight_kg=$(awk "BEGIN {printf \"%.1f\", $weight_hg / 10}")
 
-    echo "$name_cap,$height_m,$weight_kg" >> "$output_file"
+    # Append to CSV
+    echo "$name,$height_m,$weight_kg" >> "$output_file"
+
+    # Store values for average calculation
     echo "$height_m $weight_kg" >> "$temp_file"
 done
 
 echo "CSV Report generated at: $output_file"
 echo
 
-# Show CSV content except header
-awk 'NR>1' "$output_file"
-
+# Print CSV contents (excluding header)
+awk 'NR > 1' "$output_file"
 echo
 
-# Calculate averages with awk
+# Use awk to calculate average height and weight
 awk '
 {
-    sumH += $1;
-    sumW += $2;
-    count++;
+    total_height += $1
+    total_weight += $2
+    count++
 }
 END {
-    avgH = (count > 0) ? sumH/count : 0;
-    avgW = (count > 0) ? sumW/count : 0;
-    printf "Average Height: %.2f m\nAverage Weight: %.2f kg\n", avgH, avgW;
+    if (count > 0) {
+        avg_height = total_height / count
+        avg_weight = total_weight / count
+        printf "Average Height: %.2f m\nAverage Weight: %.2f kg\n", avg_height, avg_weight
+    }
 }
 ' "$temp_file"
 
+# Clean up
 rm "$temp_file"
